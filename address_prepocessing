@@ -28,3 +28,132 @@ data = pd.read_csv('data_20220422/ALL_20220422_cnt_Y.csv')
 #data = pd.concat([data, temp])
 #temp = pd.read_csv('ALL_20220408_2cnt.csv')
 #data = pd.concat([data, temp])
+
+check1 = set()
+check2 = set()
+# check by address
+def check(dataframe):
+    check_address = address['시도명']+' '+address['시군구명']
+    check_dataframe = dataframe['시도명']+' '+dataframe['시군구명']
+    result1 = set(check_address) - set(check_dataframe)
+    check1.update(result1)
+    result2 = set(check_dataframe) - set(check_address)
+    check2.update(result2)
+    return print(f'result1\n{result1}\n\nresult2\n{result2}')
+#시도명 전처리
+# 시도명 dict
+시도명사전 = {
+    '인천': '인천광역시',
+    '충남': '충청남도',
+    '경기': '경기도',
+    '대전': '대전광역시',
+    '경남': '경상남도',
+    '서울': '서울특별시',
+    '전남': '전라남도',
+    '전북': '전라북도',
+    '제주': '제주특별자치도',
+    '부산': '부산광역시',
+    '광주': '광주광역시',
+    '울산': '울산광역시',
+    '경북': '경상북도',
+    '충북': '충청북도',
+    '대구': '대구광역시',
+    '강원': '강원도',
+}
+
+# replace 시도명 based on 시도명 dict
+data = data.replace({'시도명': 시도명사전})
+
+#시군구명 전처리
+# 세종특별자치시
+세종_읍 = {'조치원읍'}
+세종_면 = {'연기면', '연동면', '부강면', '금남면', '장군면', '연서면',
+            '전의면', '전동면', '소정면'}
+세종_행정동 = {'한솔동', '도담동', '해밀동', '아름동', '종촌동', '고운동',
+            '보람동', '새롬동', '대평동', '소담동', '반곡동', '다정동'}
+세종_법정동 = {'가람동', '한솔동', '도담동', '어진동', '해밀동',
+            '산울동', '아름동', '종촌동', '고운동', '보람동', '나성동',
+            '새롬동', '대평동', '소담동', '반곡동', '집현동', '합강동', '다정동'}
+세종사전 = 세종_읍 | 세종_면 | 세종_행정동 | 세종_법정동
+
+# replace 세종특별자치시 based on 세종_행정동 | 세종_법정동
+data.loc[(data['읍면동'].isin(세종사전)) & (
+    data['시도명'] == '충청남도'), '시도명'] = '세종특별자치시'
+data.loc[(data['읍면동'].isin(세종사전)) & (
+    data['시도명'] == '충청남도'), '시도명'] = '세종특별자치시'
+
+data.loc[(data['시도명'] == '부산광역시') & (
+    data['시군구명'].str.contains('진구')), '시군구명'] = '부산진구'
+data.loc[data['시군구명'] == '강남', '시군구명'] = '강남구'
+data.loc[data['시군구명'] == '강북', '시군구명'] = '강북구'
+
+# 고양시 일산구
+일산서구_행정동 = {'일산1동', '일산2동', '일산3동', '탄현1동', '탄현2동',
+            '주엽1동', '주엽2동', '대화동', '송포동', '송산동'}
+일산서구_법정동 = {'일산동', '탄현동', '주엽동', '대화동', '법곳동',
+            '가좌동', '구산동', '덕이동'}
+일산서구 = 일산서구_행정동 | 일산서구_법정동
+일산동구_행정동 = {'식사동', '중산1동', '중산2동', '정발산동', '풍산동',
+            '백석1동', '백석2동', '마두1동', '마두2동', '장항1동', '장항2동', '고봉동'}
+일산동구_법정동 = {'식사동', '중산동', '정발산동', '풍동', '산황동', '백석동', '마두동',
+            '장항동', '성석동', '설문동', '지영동', '문봉동', '사리현동'}
+일산동구 = 일산동구_행정동 | 일산동구_법정동
+
+data.loc[(data['시군구명'] == '고양시 일산구') & (
+    data['읍면동'].isin(일산서구)), '시군구명'] = '고양시 일산서구'
+data.loc[(data['시군구명'] == '고양시 일산구') & (
+    data['읍면동'].isin(일산동구)), '시군구명'] = '고양시 일산동구'
+# 일산4동 -> 정발산동
+data.loc[data['시군구명'] == '고양시 일산구', '읍면동'] = '정발산동'
+data.loc[data['시군구명'] == '고양시 일산구', '시군구명'] = '고양시 일산동구'
+# 충청북도: 청주시 서원구, 청주시 청원구 추가
+temp = pd.DataFrame({
+    '시도명':'충청북도',
+    '시군구명':['청주시 서원구', '청주시 청원구']
+})
+address = pd.concat([address, temp], axis=0, ignore_index=True)
+
+# 인천광역시: 미추홀구 추가
+temp = pd.DataFrame({
+    '시도명':'인천광역시',
+    '시군구명':['미추홀구']
+})
+address = pd.concat([address, temp], axis=0, ignore_index=True)
+
+# address 수정
+address.loc[address['시군구명'] == '여주군', '시군구명'] = '여주시'
+
+# save
+address.to_csv('address.csv', encoding='cp949', index=False)
+
+# 고객데이터 전처리
+# data 수정
+data.loc[data['시군구명'] == '당진군', '시군구명'] = '당진시'
+data.loc[data['시군구명'] == '남제주군', '시군구명'] = '서귀포시'
+data.loc[data['시군구명'] == '북제주군', '시군구명'] = '제주시'
+data.loc[data['시군구명'] == '연기군', '시군구명'] = '세종시'
+data.loc[data['시군구명'] == '세종시', '시도명'] = '세종특별자치시'
+data.loc[data['시군구명'] == '마산시 합포구', '시군구명'] = '창원시'
+data.loc[data['시군구명'] == '마산시', '시군구명'] = '창원시'
+data.loc[data['시군구명'] == '마산시 회원구', '시군구명'] = '창원시'
+data.loc[data['시군구명'] == '포천군', '시군구명'] = '포천시'
+data.loc[(data['시도명'] == '경기도') & (data['시군구명'] == '광주군'), '시군구명'] = '광주시'
+data.loc[(data['시도명'] == '경기도') & (data['시군구명'] == '양주군'), '시군구명'] = '양주시'
+data.loc[(data['시도명'] == '경기도') & (data['시군구명'] == '화성군'), '시군구명'] = '화성시'
+data.loc[(data['시도명'] == '경기도') & (data['시군구명'] == '여주군'), '시군구명'] = '여주시'
+
+
+# save
+# data.to_csv('./data/processed/data.csv',
+#                                encoding='cp949', index=False)
+data.to_csv('data_20220422/ALL_20220423_address.csv',
+                                encoding='utf-8', index=False)
+
+data = pd.read_csv('data.csv', encoding='utf-8')
+data['시군구명'] = data['시군구명'].str.split(' ', expand=True)[0]
+
+check(data)
+
+# 공공데이터 결합
+com_data = pd.read_csv('df_v3.csv', encoding='cp949') # 공공 데이터 read 
+data_fi = pd.merge(left = data , right = com_data,  how='left', on = ['시도명','시군구명'] )
